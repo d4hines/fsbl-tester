@@ -1,0 +1,35 @@
+;; shadow-cljs configuration
+{:source-paths
+ ["src"]
+
+ :dependencies [[binaryage/devtools "0.9.7"]
+                [cljs-http "0.1.46"]
+                [datascript "0.18.4"]
+                [lilactown/punk-adapter-web "0.0.7"]
+                [posh "0.5.5"]
+                [reagent "0.8.0-alpha2"]]
+
+ ;; set an nrepl port for connection to a REPL.
+ :nrepl        {:port 8777}
+ :http {:port 9630 :host "192.168.0.13"}
+ :builds
+ {:app {:target :browser
+        :output-dir "public/js/compiled"
+        :asset-path "http://192.168.0.13:8700/js/compiled"
+
+        :modules
+        {:main
+         {:entries [fsbl-tester.core]}}
+
+        :devtools
+        ;; before live-reloading any code call this function
+        {:before-load fsbl-tester.core/stop
+         ;; after live-reloading finishes call this function
+         :after-load fsbl-tester.core/start
+         ;; serve the public directory over http at port 8700
+         :http-root    "public"
+         :http-port    8700
+         :devtools-url "http://192.168.0.13:9630"
+         :preloads     [devtools.preload
+                        punk.adapter.web.preload]}}}}
+        
