@@ -1,7 +1,7 @@
 {
   "scripts": {
     "deps": "yarn install",
-    "watch": "shadow-cljs watch app;",
+    "watch": "shadow-cljs -d cider/cider-nrepl:0.21.1 watch app;",
     "release": "shadow-cljs release app;",
     "server": "shadow-cljs server;",
     "clean": "rm -rf target; rm -rf public/js/compiled"
