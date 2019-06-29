@@ -28,5 +28,5 @@
          :http-root    "public"
          :http-port    8700
          :devtools-url "http://192.168.0.13:9630"
-         :preloads     [devtools.preload punk.adapter.web.preload]}}}}
+         :preloads     [devtools.preload]}}}}
 
