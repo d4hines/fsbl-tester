@@ -14,16 +14,16 @@
               #(swap! app-state assoc :dirty? (.. %2 -data -activeWorkspace -isDirty)))
   
   (.log js/console "foo")
-  (prn js/RouterClient))
-
-(def a {:foo {:bar [:bam :baz]}})
-
-(defn sub=? [a b]
-  (-> a (diff b) (nth 2) (= a))) 
-
-(sub=? a {:foo {:bar [:bam :baz] :baz :wing}})
-
-(sub=? a {:wing :ding})
+  (prn js/RouterClient)
+  
+  (def a {:foo {:bar [:bam :baz]}})
+  
+  (defn sub=? [a b]
+    (-> a (diff b) (nth 2) (= a))) 
+  
+  (sub=? a {:foo {:bar [:bam :baz] :baz :wing}})
+  
+  (sub=? a {:wing :ding}))
 
 (defn start []
   (reagent/render-component [view]

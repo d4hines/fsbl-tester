@@ -4,7 +4,7 @@
 
  :dependencies [[binaryage/devtools "0.9.7"]
                 [org.clojure/test.check "0.9.0"]
-                [metosin/spec-tools "0.10.0"]
+                [expound "0.7.2"]
                 [reagent "0.8.0-alpha2"]]
 
  ;; set an nrepl port for connection to a REPL.
@@ -13,6 +13,7 @@
         :host "192.168.0.13"
  :builds
  {:app {:target :browser
+        :compiler-options {:external-config {:ghostwheel {}}}
         :output-dir "public/js/compiled"
         :asset-path "http://192.168.0.13:8700/js/compiled"
 

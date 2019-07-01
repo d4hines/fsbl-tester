@@ -1,0 +1,123 @@
+(ns fsbl-tester.spec
+  (:require [clojure.spec.alpha :as s :refer [spec]]
+            [clojure.spec.gen.alpha :as gen :refer [generate]]
+            [clojure.test.check.generators]
+            [cljs.pprint :refer [pprint]]
+            [expound.alpha]
+            [spec-tools.core :as stc]))
+
+(set! s/*explain-out* expound.alpha/printer)
+
+#_(def ws-js (.parse js/JSON ws-json))
+
+#_(js->clj ws-js :keywordize-keys true)
+
+(def ws
+  {:version "1.0.0"
+   :name "Default Workspace"
+   :type "workspace"
+   :groups {:group1 #{"WC1" "WC2"}}
+   :windows {:WC1 {:componentState {:Finsemble_Linker {:group1 true}}
+                   :windowData {:componentType "Welcome Component"
+                                :defaultHeight 432
+                                :defaultLeft 761
+                                :defaultTop 454
+                                :defaultWidth 400}}
+             :WC2 {:windowData {:componentType "Welcome Component"
+                                :defaultHeight 432
+                                :defaultLeft 1161
+                                :defaultTop 454
+                                :defaultWidth 400}}
+             :Bar {:windowData {:componentType "Welcome Component"
+                                :defaultHeight 432
+                                :defaultLeft 1161
+                                :defaultTop 454
+                                :defaultWidth 400}}
+             :Foo {:windowData {:componentType "Welcome Component"
+                                :defaultHeight 432
+                                :defaultLeft 1161
+                                :defaultTop 454
+                                :defaultWidth 400}}
+             :N {:windowData {:componentType "Notepad"
+                              :defaultHeight 432
+                              :defaultLeft 1161
+                              :defaultTop 454
+                              :defaultWidth 400}}
+             :WPF {:windowData {:componentType "WPFExample"
+                                :defaultHeight 432
+                                :defaultLeft 1161
+                                :defaultTop 454
+                                :defaultWidth 400}}
+             :Stack1 {:windowData {:childWindowIdentifiers #{"Bar" "Foo"}
+                                   :componentType "StackedWindow"}}}})
+
+(defn kw->string [my-map path]
+  (update-in my-map path
+             #(reduce-kv
+               (fn [m k v]
+                 (assoc m (name k) v))
+               {} %)))
+
+(def ws-clj (-> ws
+                (kw->string [:windows])
+                (kw->string [:groups])))
+
+(s/def ::name (s/and string? (partial not= "")))
+
+(s/def ::groups (s/map-of ::name (s/coll-of ::name :kind set?)))
+
+(s/def ::linkerGroup #{:group1 :group2 :group3 :group4 :group5 :group6})
+(s/def ::Finsemble_Linker (s/map-of ::linkerGroup boolean?))
+(s/def ::componentState (s/keys :opt-un [::Finsemble_Linker]))
+
+(s/def ::componentType #{"Welcome Component" "WPFExample" "Notepad"})
+
+(s/def ::bound (s/int-in 0 2000))
+(s/def ::defaultLeft ::bound)
+(s/def ::defaultHeight ::bound)
+(s/def ::defaultTop ::bound)
+(s/def ::defaultWidth ::bound)
+
+(s/def ::childWindowIdentifiers (s/coll-of ::name :kind set?))
+(s/def :stackedWindow/componentType #{"StackedWindow"})
+
+(s/def ::windowData (s/or :normalWindow (s/keys :req-un [::componentType]
+                                                :opt-un [::defaultHeight
+                                                         ::defaultLeft
+                                                         ::defaultTop
+                                                         ::defaultWidth])
+                          :stackedWindow (s/keys :req-un [::childWindowIdentifiers :stackedWindow/componentType])))
+
+(s/def ::window (s/keys :req-un [::windowData] :opt-un [::componentState]))
+(s/def ::windows (s/map-of ::name ::window))
+(s/def ::version #{"1.0.0"})
+(s/def ::type #{"workspace"})
+(s/def :workspace/name string?)
+
+(s/def ::workspace (s/keys :req-un [:workspace/name
+                                    ::version
+                                    ::type
+                                    ::groups
+                                    ::windows]))
+
+(pprint (s/conform ::workspace ws-clj))
+
+(s/def ::new-window)
+(gen/sample (s/gen (s/cat :window)))
+
+(s/def ::add-linker (s/with-gen))
+(s/def ::bounds (s/cat :defaultTop ::bound :defaultLeft ::bound :defaultHeight ::bound :defaultWidth ::bound))
+
+(s/def ::new-window (s/cat
+                     :componentType ::componentType
+                     :name ::name
+                     :bounds ::bounds))
+(gen/generate (s/gen ::new-window))                     
+(s/conform ::new-window ["Notepad" "46gVtzp" 1097 1995 1529 1344])
+"
+?Component ?Name (with bounds ?bounds)* (on linker channel ?channel)
+Group ?Name with windows ?Windows
+Stacked Window ?Name 
+"
+
+
