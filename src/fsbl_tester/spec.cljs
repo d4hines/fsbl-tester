@@ -3,15 +3,10 @@
             [clojure.spec.gen.alpha :as gen :refer [generate]]
             [clojure.test.check.generators]
             [cljs.pprint :refer [pprint]]
-            [expound.alpha]
-            [spec-tools.core :as stc]))
+            [meander.strategy.delta :as r :include-macros true]
+            [expound.alpha]))
 
 (set! s/*explain-out* expound.alpha/printer)
-
-#_(def ws-js (.parse js/JSON ws-json))
-
-#_(js->clj ws-js :keywordize-keys true)
-
 (def ws
   {:version "1.0.0"
    :name "Default Workspace"
@@ -63,9 +58,7 @@
                 (kw->string [:groups])))
 
 (s/def ::name (s/and string? (partial not= "")))
-
 (s/def ::groups (s/map-of ::name (s/coll-of ::name :kind set?)))
-
 (s/def ::linkerGroup #{:group1 :group2 :group3 :group4 :group5 :group6})
 (s/def ::Finsemble_Linker (s/map-of ::linkerGroup boolean?))
 (s/def ::componentState (s/keys :opt-un [::Finsemble_Linker]))
@@ -77,7 +70,6 @@
 (s/def ::defaultHeight ::bound)
 (s/def ::defaultTop ::bound)
 (s/def ::defaultWidth ::bound)
-
 (s/def ::childWindowIdentifiers (s/coll-of ::name :kind set?))
 (s/def :stackedWindow/componentType #{"StackedWindow"})
 
@@ -87,7 +79,6 @@
                                                          ::defaultTop
                                                          ::defaultWidth])
                           :stackedWindow (s/keys :req-un [::childWindowIdentifiers :stackedWindow/componentType])))
-
 (s/def ::window (s/keys :req-un [::windowData] :opt-un [::componentState]))
 (s/def ::windows (s/map-of ::name ::window))
 (s/def ::version #{"1.0.0"})
@@ -100,11 +91,6 @@
                                     ::groups
                                     ::windows]))
 
-(pprint (s/conform ::workspace ws-clj))
-
-(s/def ::new-window)
-(gen/sample (s/gen (s/cat :window)))
-
 (s/def ::add-linker (s/with-gen))
 (s/def ::bounds (s/cat :defaultTop ::bound :defaultLeft ::bound :defaultHeight ::bound :defaultWidth ::bound))
 
@@ -112,12 +98,83 @@
                      :componentType ::componentType
                      :name ::name
                      :bounds ::bounds))
-(gen/generate (s/gen ::new-window))                     
 (s/conform ::new-window ["Notepad" "46gVtzp" 1097 1995 1529 1344])
+(s/def ::new-stack (s/cat
+                    :type #{"Stacked Window" "stacked window"
+                            "Stack of" "stack of"}
+                    :name ::name
+                    :children (s/+ ::new-window)))
+
+(s/conform ::new-stack (gen/generate (s/gen ::new-stack)))
+(s/def ::new-group (s/cat
+                    :type #{"Group" "group"}
+                    :name ::name
+                    :windows (s/+ (s/or
+                                   :stacked-window ::new-stack
+                                   :window ::new-window))))
+(def foo (s/conform ::new-group (gen/generate (s/gen ::new-group))))
+
+
+;; I'm trying to convert between these two formats
+;; First format
+
+
+{:type "Group"
+ :name "group1"
+ :windows [;; A vec of ::windows, made up of ::componentState
+           ;; and ::windowData
+           {:componentState {:foo :bar}
+            :windowData
+            {:name "Win1"
+             :componentType "Notepad"
+             :bounds {:defaultHeight 100
+                      :defaultWidth 300}}}]}
+;; Second format
+{:windows [;; This is  vec of *just* ::windowData
+           ;; with the :name added.
+           {:name "Win1"
+            :componentType "Notepad"
+            :bounds {:defaultHeight 100
+                     :defaultWidth 300}}]
+
+ ;; The ::componentState is seperate and indexed by name
+ :componentState {"Win1" {:foo :bar}}
+ :groups {"group1" {:windows ["Win1"]}}}
+
+{:type "Group"
+ :name "group1"
+ :windows [{:componentState {:foo :bar}
+            :windowData
+            {:name "Win1"
+             :componentType "Notepad"
+             :bounds {:defaultLeft 2
+                      :defaultHeight 100
+                      :defaultTop 200
+                      :defaultWidth 300}}}]}
+
+(def w [{:type "Group"
+         :name "group1"
+         :windows [{:name "Win1"
+                    :componentType "Notepad"
+                    :bounds {:defaultLeft 2
+                             :defaultHeight 100
+                             :defaultTop 200
+                             :defaultWidth 300}}]}
+        {:type "Group"
+         :name "group2"
+         :windows [{:name "Win1"
+                    :componentType "Notepad"
+                    :bounds {:defaultLeft 2
+                             :defaultHeight 100
+                             :defaultTop 200
+                             :defaultWidth 300}}]}])
+
 "
 ?Component ?Name (with bounds ?bounds)* (on linker channel ?channel)
 Group ?Name with windows ?Windows
 Stacked Window ?Name 
 "
+"
+Welcome Component A with boudns 0 0 500 500 on linker channel green
 
-
+"
