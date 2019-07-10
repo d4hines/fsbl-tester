@@ -61,7 +61,7 @@
                                           #",|and|\:"
                                           "")
         parser (insta/parser "
-S = <'Given'?> (window | group)+
+S = <'Given'?> (window | group | stack)+
 
 name = #'[a-zA-Z0-9]+'
 number = #'[0-9]+'
@@ -73,7 +73,7 @@ bounds = <'with bounds'> number number (number number)?
 linkerChannel = <'on linker channel'> channel
 channel = 'yellow' | 'purple' | 'green' | 'red' 
 
-stack = ('Stacked Window' | 'Stack') name ('with children' | 'of') window window+ <';'?>
+stack = <('Stacked Window' | 'Stack')> name <('with children' | 'of')> window window+ <';'?>
 group = <'Group' | 'a group'> <name> <'containing'> (window | stack) (window | stack)+ ';'?
 " :auto-whitespace :standard :string-ci true)]
     (->> s cleanStr parser (insta/transform {:number int}))))
@@ -84,10 +84,12 @@ and Welcome Component B;
 Welcome Component FOOBAR
 and Group G1 containing Notepad C and Notepad D"))
 (random-uuid)
+
 (parse "
 Welcome Component A
 on linker channel yellow
-with bounds 100 200 300 400
+with bounds 100 200 300 400,
+and Stacked Window B with children Welcome Component C and Welcome Component D
 ")
 
 
@@ -119,189 +121,37 @@ with bounds 100 200 300 400
                (random-uuid) {:windowNames !window-name
                               :isMovable true}}))
 
-{:windows (r.match/search
-             [:group
-              [:window [:component "WC"] [:name "foo"]
-               [:feature [:bounds 0 100 200 300]]]
-              [:window [:component "WC"] [:name "bar"]]]
-             (scan [:window
-                    [:component ?component]
-                    [:name ?name]
-                    . _ ...
-                    ;; Ideally, this whole feature should be optional
-                    ;; and every bounds should also default to js/undefined
-                    [:feature [:bounds ?top ?left ?width ?height]]
-                    . _ ...])
-             {:componentType ?component
-              :name  ?name
-              :defaultTop ?top
-              :defaultLeft ?left
-              :defaultWidth ?width
-              :defaultHeight ?height})}
-
 (r.match/search
- [[:window [:name "w1"] :foobar]
-  [:window [:component] [:name "w2"]]]
- [_ ... [:window
-         (scan [:name ?window-name])]
+ [[:window [:component "Notepad"] [:name "Toplevel"]
+   [:feature [:bounds 0 100 200 300]]]
+  [:stack [:name "STACK"]
+   [:window [:component "Notepad"] [:name "InStack1"]
+    [:feature [:bounds 0 100 200 300]]]
+   [:window [:component "Notepad"] [:name "InStack2"]
+    [:feature [:bounds 0 100 200 300]]]]
+  [:group
+   [:stack [:name "STACK"]
+    [:window [:component "Notepad"] [:name "SG1"]
+     [:feature [:bounds 0 100 200 300]]]
+    [:window [:component "Notepad"] [:name "SG2"]
+     [:feature [:bounds 0 100 200 300]]]]
+   [:window [:component "WC"] [:name "G1"]
+    [:feature [:bounds 0 100 200 300]]]
+   [:window [:component "WC"] [:name "G2"]
+    [:feature [:bounds 0 100 200 300]]]]]
+ ($ (scan [:window
+           [:component ?component]
+           [:name ?name]
+           . _ ...
+                     ;; Ideally, this whole feature should be optional
+                     ;; and every bounds should also default to js/undefined
+           [:feature [:bounds ?top ?left ?width ?height]]
+           . _ ...]))
+ {:componentType ?component
+  :name ?name
+  :defaultTop ?top
+  :defaultLeft ?left
+  :defaultWidth ?width
+  :defaultHeight ?height})
 
-  . _ ...]
- ?window-name)
-
-{:groups {& [[(random-uuid) {:windowNames [!window-name ...]
-                             :isMovable true}] ...]}}
-((r/rewrite
-  [:S [:group [:name ?group-name]
-       . [:window [:name !window-name]
-          [:feature
-           [:bounds !top !left !height !width]
-           [:linkerChannel !linker-channel]]]
-       ...]]
-  {:windows [{:name !window-name
-              :defaultTop !top
-              :defaultLeft !left
-              :defaultHeight !height
-              :defaultWidth !width} ...]})
- [:S [:group
-      [:name "G1"]
-      [:window
-       [:name "W1"]
-       [:feature
-        [:bounds 100 200 300 400]
-        [:linkerChannel "yellow"]]]
-      [:window
-       [:name "W2"]
-       [:feature
-        [:bounds 100 200 300 400]
-        [:linkerChannel "yellow"]]]]])
-
-((r/rewrite
-  [:S [:group [:name ?group-name]
-       . [:window [:name !window-name]
-          [:feature
-           [:bounds !top !left !height !width]
-           [:linkerChannel !linker-channel]]]
-       ...]]
-  {:windows [{:name !window-name
-              :defaultTop !top
-              :defaultLeft !left
-              :defaultHeight !height
-              :defaultWidth !width} ...]
-   :componentState {& [[!window-name
-                        {:Finsemble_Linker
-                         {& [[!linker-channel true] ...]}}]
-                       ...]}})
- [:S [:group
-      [:name "G1"]
-      [:window
-       [:name "W1"]
-       [:feature
-        [:bounds 100 200 300 400]
-        [:linkerChannel "yellow"]]]
-      [:window
-       [:name "W2"]
-       [:feature
-        [:bounds 100 200 300 400]
-        [:linkerChannel "yellow"]]]]])
-(comment
-
-  ((r/rewrite
-    [:S [:group [:name ?group-name]
-         . [:window [:name !window-name]
-            [:feature
-             [:bounds !top !left !height !width]
-             [:linkerChannel !linker-channel]]]
-         ...]]
-
-    {:groups #{?group-name {:windowNames [!window-name ...]}
-               :isMovable true}
-
-     :windows [{:name !window-name
-                :defaultTop !top
-                :defaultLeft !left
-                :defaultHeight !height
-                :defaultWidth !width} ...]
-     :componentState {& [[!window-name
-                          {:Finsemble_Linker
-                           {& [[!linker-channel true] ...]}}]
-                         ...]}})
-   [:S [:group
-        [:name "G1"]
-        [:window
-         [:name "W1"]
-         [:feature
-          [:bounds 100 200 300 400]
-          [:linkerChannel "yellow"]]]
-        [:window
-         [:name "W2"]
-         [:feature
-          [:bounds 100 200 300 400]
-          [:linkerChannel "yellow"]]]]])
-
-  (-> (parse "
-Given:
-Welcome Component A with bounds 0, 100, 200, 300, and on linker channel yellow,
-Notepad B with bounds 100 and 200,
-Group G1 containing Welcome Component C and Notepad D with bounds 100, 200, 300, 444
-and Stacked Window S1 with children Welcome Component WCS1 and Welcome Component WCS2")
-      (nth 3))
-
-  (r/search
-   [:S [:group
-        [:name "G1"]
-        [:window
-         [:name "W1"]
-         [:feature
-          [:bounds 100 200 300 400]
-          [:linkerChannel "yellow"]]]]]
-   [:S
-    [:group [:name ?group-name]
-     & (r.match/scan
-        [:window [:name ?window-name]
-         & (r.match/scan [:feature & (r.match/scan [:bounds ?top ?left ?height ?width])])])]]
-   [?group-name ?window-name [:bounds ?top ?left ?height ?width]])
-
-  ((r/rewrite
-    [:S [:group [:name ?group-name]
-         . [:window [:name !window-name]
-            (or [:feature
-                 [:bounds !top !left !height !width]
-                 [:linkerChannel !linker-channel]]
-
-                (and [:feature
-                      [:bounds !top !left !height !width]]
-                     (m/let !linker-channel "default-channel"))
-
-                (and [:feature
-                      [:linkerChannel !linker-channel]]
-                     (m/let [!top !left !height !width] [0 0 100 100]))
-
-                (let [!top !left !height !width] [0 0 100 100]))]
-
-         ...]]
-
-    {:groups {?group-name ~(set !window-name)}
-     :windows {& [[!window-name {:defaultTop !top
-                                 :defaultLeft !left
-                                 :defaultHeight !height
-                                 :defaultWidth !width}] ...]}})
-   [:S [:group
-        [:name "G1"]
-        [:window
-         [:name "W1"]
-         [:feature
-          [:bounds 100 200 300 400]
-          [:linkerChannel "yellow"]]]
-        [:window
-         [:name "W2"]
-         [:feature
-          [:bounds 100 200 300 400]]]
-        [:window
-         [:name "W3"]
-         [:feature
-          [:linkerChannel "yellow"]]]
-        [:window
-         [:name "W4"]
-         [:feature
-          [:linkerChannel "yellow"]]]]]))
 
