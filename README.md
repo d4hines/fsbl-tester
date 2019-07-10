@@ -1,28 +1,16 @@
-# {{name}}
+# Finsemble + Spec + Instaparse + Meander
 
-## Run
-
-``` shell
-yarn install
-
-yarn watch
-```
-
-## Clean
+## To Run
 
 ``` shell
-yarn clean
+npm run watch
 ```
-
-## Release
-
-``` shell
-yarn release
-```
+Then do `cider-connect` or whatever is you do.
+Jack in may work, but in Calva it's not working for me (I do `Calva Connect`).
 
 ## License
 
-Copyright © 2017 FIXME
+Copyright © 2019 ChartIQ
 
 Distributed under the Eclipse Public License either version 1.0 or (at
 your option) any later version.
