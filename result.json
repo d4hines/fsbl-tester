@@ -1,0 +1,165 @@
+{
+  "workspaceTemplates": {
+    "result": {
+      "name": "foo",
+      "type": "workspace",
+      "version": "1.0.0",
+      "windows": [
+        {
+          "componentType": "Welcome Component",
+          "name": "FIRST",
+          "defaultTop": 100,
+          "defaultLeft": 200,
+          "defaultWidth": 300,
+          "defaultHeight": 400
+        },
+        {
+          "componentType": "Welcome Component",
+          "name": "B",
+          "defaultTop": null,
+          "defaultLeft": null,
+          "defaultWidth": null,
+          "defaultHeight": null
+        },
+        {
+          "componentType": "Welcome Component",
+          "name": "FOOBAR",
+          "defaultTop": null,
+          "defaultLeft": null,
+          "defaultWidth": null,
+          "defaultHeight": null
+        },
+        {
+          "componentType": "Welcome Component",
+          "name": "A",
+          "defaultTop": 100,
+          "defaultLeft": 200,
+          "defaultWidth": 300,
+          "defaultHeight": 400
+        },
+        {
+          "componentType": "Welcome Component",
+          "name": "WCS1",
+          "defaultTop": null,
+          "defaultLeft": null,
+          "defaultWidth": null,
+          "defaultHeight": null
+        },
+        {
+          "componentType": "Welcome Component",
+          "name": "WCS2",
+          "defaultTop": null,
+          "defaultLeft": null,
+          "defaultWidth": null,
+          "defaultHeight": null
+        },
+        {
+          "componentType": "Notepad",
+          "name": "C",
+          "defaultTop": null,
+          "defaultLeft": null,
+          "defaultWidth": null,
+          "defaultHeight": null
+        },
+        {
+          "componentType": "Notepad",
+          "name": "D",
+          "defaultTop": null,
+          "defaultLeft": null,
+          "defaultWidth": null,
+          "defaultHeight": null
+        },
+        {
+          "childWindowIdentifiers": [
+            {
+              "windowName": "B"
+            },
+            {
+              "windowName": "FOOBAR"
+            }
+          ],
+          "name": "STACK1",
+          "componentType": "StackedWindow",
+          "customData": {
+            "spawnData": {
+              "windowIdentifier": [
+                {
+                  "windowName": "B"
+                },
+                {
+                  "windowName": "FOOBAR"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "childWindowIdentifiers": [
+            {
+              "windowName": "WCS1"
+            },
+            {
+              "windowName": "WCS2"
+            }
+          ],
+          "name": "STACK2",
+          "componentType": "StackedWindow",
+          "customData": {
+            "spawnData": {
+              "windowIdentifier": [
+                {
+                  "windowName": "WCS1"
+                },
+                {
+                  "windowName": "WCS2"
+                }
+              ]
+            }
+          }
+        }
+      ],
+      "groups": {
+        "G2": {
+          "windowNames": [
+            "C",
+            "D"
+          ],
+          "isMovable": false
+        },
+        "cfa15971-18bc-49f3-b5c4-1fb3532650f8": {
+          "windowNames": [
+            "C",
+            "D"
+          ],
+          "isMovable": true
+        }
+      },
+      "componentState": {
+        "FIRST": null,
+        "B": {
+          "Finsemble_Linker": {
+            "group2": true
+          }
+        },
+        "FOOBAR": {
+          "Finsemble_Linker": {
+            "group1": true
+          }
+        },
+        "A": null,
+        "WCS1": {
+          "Finsemble_Linker": {
+            "group2": true
+          }
+        },
+        "WCS2": {
+          "Finsemble_Linker": {
+            "group1": true
+          }
+        },
+        "C": null,
+        "D": null
+      }
+    }
+  }
+}

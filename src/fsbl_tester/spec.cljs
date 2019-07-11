@@ -22,8 +22,8 @@
 
 (defn color->group
   [color]
-  (get {"yellow" :group1
-        "purple" :group2} color))
+  {:Finsemble_Linker {(get {"yellow" :group1
+                            "purple" :group2} color) true}})
 
 (do
   (s/def ::name (s/and string? (partial not= "")))
@@ -37,7 +37,7 @@
 
   (s/def ::componentType #{"Welcome Component" "WPFExample" "Notepad"})
 
-  (s/def ::bound (s/int-in 0 2000))
+  (s/def ::bound (s/nilable (s/int-in 0 2000)))
   (s/def ::defaultLeft ::bound)
   (s/def ::defaultHeight ::bound)
   (s/def ::defaultTop ::bound)
@@ -79,18 +79,23 @@ S = <'Given'?> window* (group | stack)*
 name = #'[a-zA-Z0-9]+'
 number = #'[0-9]+'
 
-window = component name feature*
+window = component name bounds linkerChannel
 component = 'Welcome Component' | 'Notepad'
-feature = bounds | linkerChannel
-bounds = <'with bounds'> number number (number number)?
-linkerChannel = <'on linker channel'> channel
+bounds = (<'with bounds'> number number number number) | ''
+linkerChannel = (<'on linker channel'> channel) | ''
 channel = 'yellow' | 'purple' | 'green' | 'red' 
 
 stack = <('Stacked Window' | 'Stack')> name <('with children' | 'of')> window window+
 group = <'Group' | 'a group'> name <'containing'> window* stack*
 " :auto-whitespace :standard :string-ci true)]
-    (->> s cleanStr parser (insta/transform {:number int
-                                             :channel color->group}))))
+    (->> s cleanStr parser
+         (insta/transform {:number int
+                           :name identity
+                           ;:channel color->group
+                           ;:linkerChannel identity
+                           :component identity
+                           :bounds (fn [& args]
+                                     (or args '(nil nil nil nil)))}))))
 
 (def example (parse "
 Welcome Component FIRST with bounds 100 200 300 400
@@ -119,12 +124,12 @@ and Group G2 containing
         (r.match/search
          expr
          (scan [:group
-                [:name ?group-name]
-                . (or [:window . _ ...
-                       [:name !window-name]
-                       . _ ...]
-                      [:stack . _ ...
-                       [:name !window-name]
+                ?group-name
+                . (or [:window _
+                       !window-name
+                       _ _]
+                      [:stack
+                       !window-name
                        . _ ...]) ..2])
          {?group-name {:windowNames !window-name
                        :isMovable false}
@@ -136,15 +141,9 @@ and Group G2 containing
    {}
    (r.match/search
     expr
-    ($ [:window
-        _
-        [:name !name]
-        . _ ...
-        [:feature [:linkerChannel !channel]]
-        . _ ...])
+    ($ [:window _ !name _ !channel])
     (r.subst/substitute
-     {& [[!name {:Finsemble_Linker
-                 {!channel true}}] ...]}))))
+     {& [[!name !channel] ...]}))))
 
 ;; Windows can either be stacks or normal windows, and both
 ;; need to go in the same "bucket".
@@ -152,33 +151,28 @@ and Group G2 containing
   [expr]
   (concat (r.match/search
            expr
-           ($ (scan [:window
-                     [:component ?component]
-                     [:name ?name]
-                     . _ ...
-                     ;; Ideally, this whole feature should be optional
-                     ;; and every bounds should also default to js/undefined
-                     (or [:feature [:bounds ?top ?left ?width ?height]]
-                         (let [?top ?left ?width ?height] [0 0 300 300]))
-                     . _ ...]))
+           ($ [:window
+               ?component
+               ?name
+               (?top ?left ?width ?height)
+               _])
            {:componentType ?component
             :name ?name
             :defaultTop ?top
             :defaultLeft ?left
             :defaultWidth ?width
             :defaultHeight ?height})
-          (r.match/search expr
-                          ($ (scan [:stack
-                                    [:name ?name]
-                                    . [:window _
-                                       (and [:name !child] [:name !child2])
-                                       . _ ...] ...]))
-                          (r.subst/substitute
-                           {:name ?name
-                            :componentType "StackedWindow"
-                            :customData {:spawnData {:windowIdentifier
-                                                     [{:windowName !child2} ...]}}
-                            :childWindowIdentifiers [{:windowName !child} ...]}))))
+          (r.match/search
+           example
+           ($ [:stack
+               ?name
+               . [:window _ (and !child1 !child2) _ _] ...])
+           (r.subst/substitute
+            {:name ?name
+             :componentType "StackedWindow"
+             :customData {:spawnData {:windowIdentifier
+                                      [{:windowName !child2} ...]}}
+             :childWindowIdentifiers [{:windowName !child1} ...]}))))
 
 (defn transform [expr]
   {:name "foo"
@@ -188,10 +182,9 @@ and Group G2 containing
    :groups (groups expr)
    :componentState (componentState expr)})
 
-(first (windows (parse "
-Stacked Window STACK1
-of Welcome Component A and Welcome Component B")))
-(pprint (transform example))
+(s/valid? ::workspace (transform example))
 
+(defn print-json [v]
+  (->> v clj->js (.stringify js/JSON) (.log js/console)))
 
-
+(print-json (transform example))
