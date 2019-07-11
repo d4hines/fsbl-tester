@@ -71,10 +71,10 @@
 
 (defn parse [s]
   (let [cleanStr #(clojure.string/replace %
-                                          #",|and|\:"
+                                          #"and|\:"
                                           "")
         parser (insta/parser "
-S = <'Given'?> (window | group | stack)+
+S = <'Given'?> window* (group | stack)*
 
 name = #'[a-zA-Z0-9]+'
 number = #'[0-9]+'
@@ -86,20 +86,24 @@ bounds = <'with bounds'> number number (number number)?
 linkerChannel = <'on linker channel'> channel
 channel = 'yellow' | 'purple' | 'green' | 'red' 
 
-stack = <('Stacked Window' | 'Stack')> name <('with children' | 'of')> window window+ <';'?>
-group = <'Group' | 'a group'> name <'containing'> (window | stack) (window | stack)+ <';'>?
+stack = <('Stacked Window' | 'Stack')> name <('with children' | 'of')> window window+
+group = <'Group' | 'a group'> name <'containing'> window* stack*
 " :auto-whitespace :standard :string-ci true)]
     (->> s cleanStr parser (insta/transform {:number int
                                              :channel color->group}))))
 
 (def example (parse "
-A Group G1 containing Welcome Component A with bounds 100 200 300 400
-and Welcome Component B on linker channel purple;
-Welcome Component FOOBAR on linker channel yellow
-and Group G2 containing Notepad C and Notepad D"))
-
-
-
+Welcome Component FIRST with bounds 100 200 300 400
+Stacked Window STACK1 of
+  Welcome Component B on linker channel purple
+  Welcome Component FOOBAR on linker channel yellow
+A Group G1 containing
+  Welcome Component A with bounds 100 200 300 400
+  Stacked Window STACK2 of
+    Welcome Component WCS1 on linker channel purple
+    Welcome Component WCS2 on linker channel yellow
+and Group G2 containing
+  Notepad C and Notepad D"))
 
 ;; There are 3 "kinds" of things:
 ;; - Windows
@@ -108,6 +112,8 @@ and Group G2 containing Notepad C and Notepad D"))
 
 ;; We have an old and crusty API format that's got tons of duplication, etc.
 ;; The task is to parse a controlled natural language into this API format.
+
+
 (defn groups [expr]
   (into {}
         (r.match/search
@@ -126,21 +132,23 @@ and Group G2 containing Notepad C and Notepad D"))
                                :isMovable true}})))
 
 (defn componentState [expr]
-  (r.match/search
-   expr
-   ($ [:window
-       _
-       [:name !name]
-       . _ ...
-       [:feature [:linkerChannel !channel]]
-       . _ ...])
-   (r.subst/substitute
-    {& [[!name {:Finsemble_Linker
-                {!channel true}}] ...]})))
+  (into
+   {}
+   (r.match/search
+    expr
+    ($ [:window
+        _
+        [:name !name]
+        . _ ...
+        [:feature [:linkerChannel !channel]]
+        . _ ...])
+    (r.subst/substitute
+     {& [[!name {:Finsemble_Linker
+                 {!channel true}}] ...]}))))
 
 ;; Windows can either be stacks or normal windows, and both
 ;; need to go in the same "bucket".
-(defn windows 
+(defn windows
   [expr]
   (concat (r.match/search
            expr
@@ -150,7 +158,8 @@ and Group G2 containing Notepad C and Notepad D"))
                      . _ ...
                      ;; Ideally, this whole feature should be optional
                      ;; and every bounds should also default to js/undefined
-                     [:feature [:bounds ?top ?left ?width ?height]]
+                     (or [:feature [:bounds ?top ?left ?width ?height]]
+                         (let [?top ?left ?width ?height] [0 0 300 300]))
                      . _ ...]))
            {:componentType ?component
             :name ?name
@@ -158,15 +167,19 @@ and Group G2 containing Notepad C and Notepad D"))
             :defaultLeft ?left
             :defaultWidth ?width
             :defaultHeight ?height})
-
-          (r.match/search mix
+          (r.match/search expr
                           ($ (scan [:stack
                                     [:name ?name]
-                                    . [:window _ [:name !child] . _ ...] ...]))
+                                    . [:window _
+                                       (and [:name !child] [:name !child2])
+                                       . _ ...] ...]))
                           (r.subst/substitute
                            {:name ?name
                             :componentType "StackedWindow"
+                            :customData {:spawnData {:windowIdentifier
+                                                     [{:windowName !child2} ...]}}
                             :childWindowIdentifiers [{:windowName !child} ...]}))))
+
 (defn transform [expr]
   {:name "foo"
    :type "workspace"
@@ -175,4 +188,10 @@ and Group G2 containing Notepad C and Notepad D"))
    :groups (groups expr)
    :componentState (componentState expr)})
 
-(s/valid? ::workspace (transform example))
+(first (windows (parse "
+Stacked Window STACK1
+of Welcome Component A and Welcome Component B")))
+(pprint (transform example))
+
+
+
