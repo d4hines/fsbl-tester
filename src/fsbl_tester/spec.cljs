@@ -91,8 +91,8 @@ group = <'Group' | 'a group'> name <'containing'> window* stack*
     (->> s cleanStr parser
          (insta/transform {:number int
                            :name identity
-                           ;:channel color->group
-                           ;:linkerChannel identity
+                           :channel color->group
+                           :linkerChannel identity
                            :component identity
                            :bounds (fn [& args]
                                      (or args '(nil nil nil nil)))}))))
