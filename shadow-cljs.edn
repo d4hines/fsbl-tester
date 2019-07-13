@@ -3,10 +3,11 @@
  ["src"]
 
  :dependencies [[binaryage/devtools "0.9.7"]
-                [org.clojure/test.check "0.9.0"]
                 [expound "0.7.2"]
                 [meander/delta "0.0.137"]
                 [instaparse "1.4.10"]
+                [gnl/ghostwheel "0.3.9"]
+                [funcool/promesa "2.0.1"]
                 [reagent "0.8.0-alpha2"]]
 
  ;; set an nrepl port for connection to a REPL.
@@ -21,7 +22,7 @@
 
         :modules
         {:main
-         {:entries [fsbl-tester.core]}}
+         {:entries [fsbl-tester.core fsbl-tester.workspace]}}
         :devtools
         ;; before live-reloading any code call this function
         {:before-load fsbl-tester.core/stop

@@ -1,41 +1,37 @@
+;;;;;;;;;;;;;;;;;; Project Setup ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (ns fsbl-tester.core
-  (:require [reagent.core :as reagent :refer [atom]]
+  #:ghostwheel.core{:check true
+                    :num-tests 10}
+  (:require [reagent.core :as reagent]
             [fsbl-tester.view :refer [view]]
-            [clojure.data :refer [diff]]
-            [cljs.core.async :refer [<!]])
+            [fsbl-tester.workspace :as ws]
+            [fsbl-tester.api :as api]
+
+            [clojure.string :as str]
+            [clojure.spec.alpha :as s :refer [spec]]
+            [clojure.spec.gen.alpha :as gen :refer [generate]]
+            [instaparse.core :as insta]
+            [meander.match.delta :as r.match :include-macros true]
+            [meander.substitute.delta :as r.subst]
+            [meander.strategy.delta :as r :include-macros true]
+
+            [clojure.test.check.generators]
+            [expound.alpha]
+            [ghostwheel.core :as g
+             :refer [>defn >defn- >fdef => | <- ?]])
+
   (:require-macros [cljs.core.async.macros :refer [go]]))
 
-;; define your app data so that it doesn't get over-written on reload
-(comment
- 
-  (.addGlobalHotkey hk #js ["ctrl" "shift" "s"] #(do (prn "saving") (.save ws)))
+(set! s/*explain-out* expound.alpha/printer)
 
-  (.subscribe rc "Finsemble.WorkspaceService.update"
-              #(swap! app-state assoc :dirty? (.. %2 -data -activeWorkspace -isDirty)))
-  
-  (.log js/console "foo")
-  (prn js/RouterClient)
-  
-  (def a {:foo {:bar [:bam :baz]}})
-  
-  (defn sub=? [a b]
-    (-> a (diff b) (nth 2) (= a))) 
-  
-  (sub=? a {:foo {:bar [:bam :baz] :baz :wing}})
-  
-  (sub=? a {:wing :ding}))
-
+;;;;;;;;;;;;;;;;;;;;;;; Hot Reloading ;;;;;;;;;;;;;;;;;;;;;
 (defn start []
+  (g/check #"fsbl-tester.*")
   (reagent/render-component [view]
                             (. js/document (getElementById "app"))))
-
 (defn ^:export init []
-  ;; init is called ONCE when the page loads
-  ;; this is called in the index.html and must be exported
-  ;; so it is available even in :advanced release builds
   (start))
 
 (defn stop []
-  ;; stop is called before any code is reloaded
-  ;; this is controlled by :before-load in the config
-  (js/console.log "stop"))
+  (js/console.log "Hot reloading fsbl-tester.core..."))
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
