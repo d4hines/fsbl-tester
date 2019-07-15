@@ -1,7 +1,7 @@
 (ns fsbl-tester.parse
   #:ghostwheel.core{:check true
                     :num-tests 10}
-  (:require [fsbl-tester.workspace :as ws]
+  (:require [fsbl-tester.workspace :as ws :refer [gen]]
             [clojure.string :as str]
             [clojure.spec.alpha :as s :refer [spec]]
             [clojure.spec.gen.alpha :as gen :refer [generate]]
@@ -13,19 +13,8 @@
             [clojure.test.check.generators]
             [ghostwheel.core :as g
              :refer [>defn => | <- ?]])
-
   (:require-macros [cljs.core.async.macros :refer [go]]))
-(>defn stringify-map
-       [my-map]
-       [map? => map? | #(every? string? (keys %))]
-       (reduce (fn [m k v]
-                 (.log js/console m k v)
-                 (assoc m (name (str k)) v))
-                  my-map {}))
 
-(stringify-map {0 1})
-(-> 0 str name)
-(g/check)
 (def ex1  "
 Welcome Component FIRST with bounds 100 200 300 400
 Stacked Window STACK1 of
@@ -35,9 +24,11 @@ Stacked Window STACK1 of
 
 (def color-map {"yellow" :group1
                 "purple" :group2})
-(defn parse [s]
-  (let [cleanStr #(str/replace % #"and|\:" "")
-        parser (insta/parser "
+(>defn parse
+       [s]
+       [string? => ::ws/workspace-ast]
+       (let [cleanStr #(str/replace % #"and|\:" "")
+             parser (insta/parser "
 S = <'Given'?> window* stack*
 
 name = #'[a-zA-Z0-9]+'
@@ -51,65 +42,77 @@ channel = 'yellow' | 'purple'
 
 stack = <('Stacked Window' | 'Stack')> name <('with children' | 'of')> window window+
 " :auto-whitespace :standard :string-ci true)]
-    (->> s cleanStr parser
-         (insta/transform {:number int
-                           :name identity
-                           :channel (fn [c] {:Finsemble_Linker {(get color-map c) true}})
-                           :linkerChannel identity
-                           :component identity
-                           :bounds (fn [& args]
-                                     (or args '(nil nil nil nil)))}))))
+         (->> s cleanStr parser
+              (insta/transform {:number int
+                                :name identity
+                                :channel (fn [c] {:Finsemble_Linker {(get color-map c) true}})
+                                :linkerChannel identity
+                                :component identity
+                                :bounds (fn [& args]
+                                          (or args '(nil nil nil nil)))}))))
 
 (defn componentState [expr]
   (into
    {}
    (r.match/search
-       expr
-       ($ [:window _ !name _ !channel])
-       (r.subst/substitute
-        {& [[!name !channel] ...]}))))
-(componentState (parse ex1))
-(defn normalWindows [expr]
- (r.match/search
-           expr
-           ($ [:window
-               ?component
-               ?name
-               (?top ?left ?width ?height)
-               _])
-           {:componentType ?component
-            :name ?name
-            :defaultTop ?top
-            :defaultLeft ?left
-            :defaultWidth ?width
-            :defaultHeight ?height}))
-(defn stackedWindows [expr]
- (r.match/search
-           example
-           ($ [:stack
-               ?name
-               . [:window _ (and !child1 !child2) _ _] ...])
-           (r.subst/substitute
-            {:name ?name
-             :componentType "StackedWindow"
-             :customData {:spawnData {:windowIdentifier
-                                      [{:windowName !child2} ...]}}
-             :childWindowIdentifiers [{:windowName !child1} ...]})))
+    expr
+    ($ [:window _ !name _ !channel])
+    (r.subst/substitute
+     {& [[!name !channel] ...]}))))
 
-(defn windows
-  [expr]
-  (concat (normalWindows expr)
-          ))
+(defn normalWindows [expr]
+  (r.match/search
+   expr
+   ($ [:window
+       ?component
+       ?name
+       (?top ?left ?width ?height)
+       _])
+   {:componentType ?component
+    :name ?name
+    :defaultTop ?top
+    :defaultLeft ?left
+    :defaultWidth ?width
+    :defaultHeight ?height}))
+
+(defn unparse-normalWindows [expr]
+  (r.match/search
+   expr
+   ($ [:window
+       ?component
+       ?name
+       (?top ?left ?width ?height)
+       _])
+   [?component ?name
+    "with bounds" ?top ?left ?width ?height
+    ]))
+
+(def win (ws/gen ::ws/window-ast))
+(unparse-normalWindows win)
+(str/join " " (flatten (unparse-normalWindows win)))
+
+(unparse-normalWindows win)
+(defn stackedWindows [expr]
+  (r.match/search
+   expr
+   ($ [:stack
+       ?name
+       . [:window _ (and !child1 !child2) _ _] ...])
+   (r.subst/substitute
+    {:name ?name
+     :componentType "StackedWindow"
+     :customData {:spawnData {:windowIdentifier
+                              [{:windowName !child2} ...]}}
+     :childWindowIdentifiers [{:windowName !child1} ...]})))
 
 (defn transform [expr]
   {:name "foo"
    :type "workspace"
    :version "1.0.0"
-   :windows (concat (juxt )expr)
+   :windows (flatten ((juxt normalWindows stackedWindows) expr))
    :groups {}
    :componentState (componentState expr)})
 
-((juxt normalWindows stackedWindows) expr)
-((comp concat ))
 
-(transform example)
+
+(transform (parse ex1))

@@ -51,3 +51,30 @@
                                     ::groups
                                     ::windowData
                                     ::windows]))
+
+(s/def ::bounds-ast (s/or :empty #{'(nil nil nil nil)}
+                          :not-empty (s/cat :defaultTop ::bound
+                                 :defaultLeft ::bound
+                                 :defaultWidth ::bound
+                                 :defaultHeight ::bound)))
+(gen ::bounds-ast)
+(s/def ::window-ast (s/tuple #{:window}
+                             ::componentType
+                             ::name
+                             ::bounds-ast
+                             ::componentState))
+
+(s/def ::stackedWindow-pattern (s/cat :type #{:stack}
+                                      :name ::name
+                                      :first-child ::window-ast
+                                      :children (s/+ ::window-ast)))
+
+(s/def ::stackedWindow-ast (s/with-gen (s/and vector? ::stackedWindow-pattern)
+                             #(gen/fmap vec (s/gen ::stackedWindow-pattern))))
+
+(s/def ::workspace-pattern (s/cat :init #{:S}
+                               :windows (s/* ::window-ast)
+                               :stacks (s/* ::stackedWindow-ast)))
+
+(s/def ::workspace-ast (s/with-gen (s/and vector? ::workspace-pattern)
+                          #(gen/fmap vec (s/gen ::workspace-pattern))))

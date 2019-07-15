@@ -6,6 +6,7 @@
             [fsbl-tester.view :refer [view]]
             [fsbl-tester.workspace :as ws]
             [fsbl-tester.api :as api]
+            [fsbl-tester.parse :as parse]
 
             [clojure.string :as str]
             [clojure.spec.alpha :as s :refer [spec]]
@@ -26,6 +27,7 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;; Hot Reloading ;;;;;;;;;;;;;;;;;;;;;
 (defn start []
+
   (g/check #"fsbl-tester.*")
   (reagent/render-component [view]
                             (. js/document (getElementById "app"))))
