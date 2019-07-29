@@ -5,10 +5,11 @@
    [clojure.spec.alpha :as s :refer [spec]]
    [clojure.spec.gen.alpha :as gen :refer [generate]]
    [fsbl-tester.workspace :as ws]
+   [fsbl-tester.parse :as p]
    [ghostwheel.core :as g
     :refer [>defn => | <- ?]]))
 
-(def ws (.. js/FSBL -Clients -WorkspaceClient))
+(def wsc (.. js/FSBL -Clients -WorkspaceClient))
 (def log (.log js/console))
 
 (>defn stringify-keys
@@ -17,13 +18,33 @@
        (reduce (fn [m [k v]] (assoc m (name k) v))
                {} my-map))
 
-(defn export [name]
+(defn export! [name]
   (->
-   (.export ws #js {"workspaceName" name})
+   (.export wsc #js {"workspaceName" name})
    (.then #(-> %
                (js->clj :keywordize-keys true)
                (get (keyword name))
                (update :componentStates stringify-keys)
                (update :groups stringify-keys)))))
 
-(.then (export "Default Workspace") #(s/explain ::ws/workspace %))
+(-> (export! "Default Workspace")
+    (.then ))
+(>defn import-ws!
+       [ws]
+       [::ws/workspace => nil?]
+       (s/conform ::ws/workspace ws)
+       (.import wsc #js {:workspaceJSONDefinition
+                         (clj->js {(:name ws) ws})
+                         :force true}))
+
+(def ws (atom nil))
+
+(comment
+ (-> (p/parse
+      "
+Stacked Window S4 of Welcome Component A1, Welcome Component B1")
+     (p/transform )
+     (assoc :name "ding2")
+     import-ws!)
+ (.then (export "Default Workspace")
+         #(import-ws (assoc % :name "bar"))))

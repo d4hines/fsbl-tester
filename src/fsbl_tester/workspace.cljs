@@ -6,10 +6,20 @@
 
 (defn gen [sp] (generate (s/gen sp)))
 
+(s/def ::my-seq (s/cat
+                 :int int?
+                 :string string?
+                 :bools (s/* boolean?)))
+(s/explain ::my-seq [0 "foo" true true "foo"])
+(s/def ::foo string?)
+
 (s/def ::name (s/and string? (partial not= "")))
+
 (s/def ::windowNames (s/coll-of ::name))
+
 (s/def ::isMovable boolean?)
 (s/def ::group (s/keys :req-un [::isMovable ::windowNames]))
+
 (s/def ::groups (s/map-of ::name ::group))
 (s/def ::linkerGroup #{:group1 :group2 :group3 :group4 :group5 :group6})
 (s/def ::Finsemble_Linker (s/map-of ::linkerGroup boolean?))
@@ -28,7 +38,7 @@
 (s/def ::childWindowIdentifier (s/keys :req-un [::windowName]))
 (s/def ::childWindowIdentifiers (s/coll-of ::childWindowIdentifier))
 (s/def :stackedWindow/componentType #{"StackedWindow"})
-
+(s/def :stackedWindow/windowType #{"StackedWindow"})
 (s/def ::window (s/or :normalWindow (s/keys :req-un [::componentType
                                                      ::name]
                                             :opt-un [::defaultHeight
@@ -37,7 +47,8 @@
                                                      ::defaultWidth])
                       :stackedWindow (s/keys :req-un [::name
                                                       ::childWindowIdentifiers
-                                                      :stackedWindow/componentType])))
+                                                      :stackedWindow/componentType
+                                                      :stackedWindow/windowType])))
 (s/def ::windowData (s/coll-of ::window))
 (s/def ::windows (s/coll-of ::name))
 
@@ -57,7 +68,7 @@
                                  :defaultLeft ::bound
                                  :defaultWidth ::bound
                                  :defaultHeight ::bound)))
-(gen ::bounds-ast)
+
 (s/def ::window-ast (s/tuple #{:window}
                              ::componentType
                              ::name

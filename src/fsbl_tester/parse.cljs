@@ -15,38 +15,53 @@
              :refer [>defn => | <- ?]])
   (:require-macros [cljs.core.async.macros :refer [go]]))
 
-(def ex1  "
-Welcome Component FIRST with bounds 100 200 300 400
-Stacked Window STACK1 of
-  Welcome Component B on linker channel purple
-  Welcome Component FOOBAR on linker channel yellow
-")
+((r/rewrite
+  {!parent [!children ...]}
+  [. !parent . !children ... ...])
+ {:foo [:child1 :child2]
+  :bar [:child3 :child4]})
 
-(def color-map {"yellow" :group1
-                "purple" :group2})
+((r/rewrite
+  {!parent [!children ...]}
+  [!parent . !children ...])
+ {:foo [:child1 :child2]
+  :bar [:child3 :child4]})
+
+(def color->group {"yellow" :group1
+                   "purple" :group2})
+
+(def group->color {:group1 "yellow"
+                   :group2 "purple"})
+
+(defn channels->componentState [& args]
+  {:Finsemble_Linker
+   (reduce #(assoc %1 %2 true) {} args)})
+
+(def replace_ #(if (nil? %) "_" %))
+(def underscore? (partial = "_"))
+
 (>defn parse
        [s]
        [string? => ::ws/workspace-ast]
-       (let [cleanStr #(str/replace % #"and|\:" "")
+       (let [cleanStr #(str/replace % #",|and|\:" "")
              parser (insta/parser "
-S = <'Given'?> window* stack*
+S = <'Given'?> window*
 
 name = #'[a-zA-Z0-9]+'
-number = #'[0-9]+'
+number = #'[0-9]+' | '_'
 
 window = component name bounds linkerChannel
 component = 'Welcome Component' | 'Notepad'
 bounds = (<'with bounds'> number number number number) | ''
-linkerChannel = (<'on linker channel'> channel) | ''
-channel = 'yellow' | 'purple'
+linkerChannel = (<'on linker channel'| 'on linker channels'> channel+) | ''
 
-stack = <('Stacked Window' | 'Stack')> name <('with children' | 'of')> window window+
+channel = 'yellow' | 'purple'
 " :auto-whitespace :standard :string-ci true)]
          (->> s cleanStr parser
-              (insta/transform {:number int
+              (insta/transform {:number #(if (= % "_") nil (int %))
                                 :name identity
-                                :channel (fn [c] {:Finsemble_Linker {(get color-map c) true}})
-                                :linkerChannel identity
+                                :channel color->group
+                                :linkerChannel channels->componentState
                                 :component identity
                                 :bounds (fn [& args]
                                           (or args '(nil nil nil nil)))}))))
@@ -60,7 +75,7 @@ stack = <('Stacked Window' | 'Stack')> name <('with children' | 'of')> window wi
     (r.subst/substitute
      {& [[!name !channel] ...]}))))
 
-(defn normalWindows [expr]
+(defn windows [expr]
   (r.match/search
    expr
    ($ [:window
@@ -75,44 +90,52 @@ stack = <('Stacked Window' | 'Stack')> name <('with children' | 'of')> window wi
     :defaultWidth ?width
     :defaultHeight ?height}))
 
-(defn unparse-normalWindows [expr]
-  (r.match/search
-   expr
-   ($ [:window
-       ?component
-       ?name
-       (?top ?left ?width ?height)
-       _])
-   [?component ?name
-    "with bounds" ?top ?left ?width ?height
-    ]))
 
-(def win (ws/gen ::ws/window-ast))
-(unparse-normalWindows win)
-(str/join " " (flatten (unparse-normalWindows win)))
+(defn unparse
+  [ast]
+  (let [unparse
+        (r/rewrite
+         [:S . [:window
+                !component
+                !name
+                ((app replace_ !top)
+                 (app replace_ !left)
+                 (app replace_ !width)
+                 (app replace_ !height))
+                _] ...]
+         [!component " " !name
+          " with bounds " !top " " !left " " !width " " !height
+          ",\n" ...])]
+    (->> (unparse ast) (drop-last 1) str/join)))
 
-(unparse-normalWindows win)
-(defn stackedWindows [expr]
-  (r.match/search
-   expr
-   ($ [:stack
-       ?name
-       . [:window _ (and !child1 !child2) _ _] ...])
-   (r.subst/substitute
-    {:name ?name
-     :componentType "StackedWindow"
-     :customData {:spawnData {:windowIdentifier
-                              [{:windowName !child2} ...]}}
-     :childWindowIdentifiers [{:windowName !child1} ...]})))
-
-(defn transform [expr]
-  {:name "foo"
+(parse (unparse (parse "Welcome Component A with bounds 0 0 100 100")))
+(unparse (ws/gen ::ws/workspace-ast))
+(defn transform [expr name]
+  {:name name
    :type "workspace"
    :version "1.0.0"
-   :windows (flatten ((juxt normalWindows stackedWindows) expr))
+   :windows (windows expr)
    :groups {}
    :componentState (componentState expr)})
 
 
 
-(transform (parse ex1))
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
